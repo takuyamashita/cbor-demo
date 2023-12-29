@@ -32,9 +32,15 @@ func (dec *Decoder) Decode() ([]any, error) {
 	return result, nil
 }
 
+// https://datatracker.ietf.org/doc/html/rfc8949#name-specification-of-the-cbor-e
+// | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | ...
+// |major type |  additional info  |            value(argument)      |
+//
+
 func (dec *Decoder) decode() ([]any, error) {
 
 	for {
+
 		initialByte, err := dec.bf.ReadByte()
 		if err == io.EOF {
 			break
@@ -44,7 +50,7 @@ func (dec *Decoder) decode() ([]any, error) {
 		}
 
 		majorType := initialByte >> 5
-		additionalInfo := initialByte & 0x1f
+		additionalInfo := initialByte & 0b00011111
 
 		var v interface{}
 
@@ -163,6 +169,7 @@ func (dec Decoder) decodeUnsignedInteger(bf *bufio.Reader, additionalInfo int) (
 		return 0, fmt.Errorf("additional info of 28 is not supported")
 	default:
 		// handle 0-23
+		// additionalInfo is the value itself
 		value = uint64(additionalInfo)
 	}
 
@@ -170,6 +177,9 @@ func (dec Decoder) decodeUnsignedInteger(bf *bufio.Reader, additionalInfo int) (
 }
 
 func (dec Decoder) decodeNegativeInteger(bf *bufio.Reader, additionalInfo int) (*big.Int, error) {
+
+	// 0b001_11001 (major type 1, additional information 25)
+
 	v, err := dec.decodeUnsignedInteger(bf, additionalInfo)
 	if err != nil {
 		return nil, err
